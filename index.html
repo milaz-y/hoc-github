@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xưởng Bằng Cấp Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&family=Lora&family=Be+Vietnam+Pro:wght@400;700&family=Roboto+Slab&family=Merriweather&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"Optima";src:url("optima.ttf") format("truetype");font-display:swap}
+:root{--bg:#eef1ee;--panel:#ffffff;--ink:#1b2a26;--mute:#5d6b66;--line:#cfd8d3;--accent:#1f5d4a;--accent-ink:#ffffff}
+@media (prefers-color-scheme:dark){:root{--bg:#121917;--panel:#1b2623;--ink:#e6efeb;--mute:#9bada6;--line:#2e3c37;--accent:#5fc3a0;--accent-ink:#0c1512}}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Be Vietnam Pro",Arial,sans-serif;line-height:1.5}
+.wrap{max-width:1200px;margin:0 auto;padding:20px}
+h1{font-family:"Playfair Display",Georgia,serif;font-size:1.9rem;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 18px}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.tab{flex:1 1 200px;padding:14px 18px;border:2px solid var(--accent);background:transparent;color:var(--accent);font:700 1rem "Be Vietnam Pro",Arial,sans-serif;border-radius:8px;cursor:pointer}
+.tab[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 3px}
+input[type=text],input[type=date],select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+input[type=color]{width:100%;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:2px}
+input[type=range]{width:100%}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+details{margin-top:6px}
+summary{cursor:pointer;font-size:.8rem;color:var(--accent)}
+.grp{font-size:.8rem;font-weight:700;margin:8px 0 2px}
+.sl{display:grid;grid-template-columns:52px 1fr;align-items:center;gap:8px;font-size:.8rem;color:var(--mute)}
+.dl{width:100%;margin-top:16px;padding:13px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font:700 1rem "Be Vietnam Pro",Arial,sans-serif;cursor:pointer}
+.note{font-size:.8rem;color:var(--mute);margin-top:10px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:hidden}
+canvas{width:100%;max-height:85vh;object-fit:contain;display:block;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Xưởng Bằng Cấp Game</h1>
+  <p class="sub">Chọn loại giấy, điền thông tin, rồi tải ảnh PNG. Chỉ dùng làm đạo cụ trong game.</p>
+
+  <div class="tabs">
+    <button class="tab" id="tabBang" aria-pressed="true">Tạo bằng tốt nghiệp</button>
+    <button class="tab" id="tabCn" aria-pressed="false">Tạo giấy chứng nhận</button>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <label for="in_ten">Họ và tên</label>
+      <input type="text" id="in_ten" value="Nguyễn Văn A">
+      <label for="in_ngay">Ngày tốt nghiệp</label>
+      <input type="date" id="in_ngay">
+      <label for="in_uid">UID game</label>
+      <input type="text" id="in_uid" value="123456789">
+
+      <div class="row">
+        <div><label for="font">Font chữ</label>
+          <select id="font">
+            <option>Optima</option><option>Playfair Display</option><option>Lora</option>
+            <option>Be Vietnam Pro</option><option>Roboto Slab</option><option>Merriweather</option>
+          </select></div>
+        <div><label for="color">Màu chữ</label><input type="color" id="color" value="#111111"></div>
+      </div>
+
+      <details>
+        <summary>Chỉnh vị trí chữ (nếu lệch)</summary>
+        <div id="pos"></div>
+      </details>
+
+      <button class="dl" id="dl">Tải ảnh PNG</button>
+      <p class="note">Cần để cùng thư mục với index.html: <b>bang.png</b>, <b>chungnhan.png</b>, <b>optima.ttf</b>.</p>
+    </div>
+    <div class="stage"><canvas id="cv" width="1080" height="708"></canvas></div>
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+
+// x, y = vị trí (% của ảnh), s = cỡ chữ (% chiều rộng ảnh), a = căn lề
+// cover = [x, y, rộng, cao] (%) che chữ in sẵn trên phôi trước khi viết chữ mới
+const MODES = {
+  bang: { img: 'bang.png', file: 'bang-tot-nghiep.png', color: '#111111', ops: [
+    {f:'ten',  t:'{v}',                         x:28.2, y:25.0, s:1.9, a:'left',   lb:'Họ và tên'},
+    {f:'uid',  t:'Mã số: {v}',                  x:15.3, y:86.3, s:1.9, a:'left',   lb:'UID game', cover:[14.9,84.6,11.5,3.6]},
+    {f:'ngay', t:'Ngày {d} tháng {m} năm {y}',  x:70.6, y:90.0, s:1.9, a:'center', lb:'Ngày tốt nghiệp', cover:[59.4,88.2,22.6,3.8]}
+  ]},
+  cn: { img: 'chungnhan.png', file: 'bang-chung-nhan.png', color: '#2b1d8a', ops: [
+    {f:'ten',  t:'{v}', x:32.1, y:34.3, s:2.7, a:'left',   lb:'Họ và tên'},
+    {f:'uid',  t:'{v}', x:70.4, y:34.3, s:2.7, a:'left',   lb:'UID game'},
+    {f:'ngay', t:'{d}', x:17.8, y:43.1, s:2.7, a:'center', lb:'Ngày'},
+    {f:'ngay', t:'{m}', x:25.6, y:43.1, s:2.7, a:'center', lb:'Tháng'},
+    {f:'ngay', t:'{y}', x:33.4, y:43.1, s:2.7, a:'center', lb:'Năm'}
+  ]}
+};
+const FIELDS = [['ten', 'Họ và tên'], ['ngay', 'Ngày tốt nghiệp'], ['uid', 'UID game']];
+
+const KEY = 'xuong-bang-cap-v2';
+let mode = 'bang', bgImg = null, pos = {};
+
+function initPos(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){}
+  for (const m in MODES) pos[m] = MODES[m].ops.map((o, i) => Object.assign({x:o.x, y:o.y, s:o.s}, (saved[m] || [])[i] || {}));
+}
+function savePos(){ try { localStorage.setItem(KEY, JSON.stringify(pos)); } catch(e){} }
+
+function loadBg(src){
+  return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+}
+
+function slider(label, min, max, step, val, fn){
+  const w = document.createElement('div'); w.className = 'sl';
+  const t = document.createElement('span'); t.textContent = label;
+  const r = document.createElement('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = val;
+  r.setAttribute('aria-label', label);
+  r.addEventListener('input', () => fn(parseFloat(r.value)));
+  w.append(t, r); return w;
+}
+
+function buildPos(){
+  const box = document.getElementById('pos'); box.innerHTML = '';
+  MODES[mode].ops.forEach((o, i) => {
+    const p = pos[mode][i];
+    const g = document.createElement('div'); g.className = 'grp'; g.textContent = o.lb;
+    box.append(g,
+      slider('Ngang', 0, 100, 0.1, p.x, v => { p.x = v; savePos(); draw(); }),
+      slider('Dọc',   0, 100, 0.1, p.y, v => { p.y = v; savePos(); draw(); }),
+      slider('Cỡ chữ', 1, 6, 0.05, p.s, v => { p.s = v; savePos(); draw(); }));
+  });
+}
+
+function dateParts(v){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+  return m ? {y: m[1], m: String(+m[2]), d: String(+m[3])} : null;
+}
+
+async function draw(){
+  const font = document.getElementById('font').value;
+  const color = document.getElementById('color').value;
+  try { await document.fonts.load('40px "' + font + '"', 'Ạăễ'); } catch(e){}
+
+  const W = bgImg ? bgImg.naturalWidth : 1080, H = bgImg ? bgImg.naturalHeight : 708;
+  if (cv.width !== W) cv.width = W;
+  if (cv.height !== H) cv.height = H;
+
+  if (bgImg) ctx.drawImage(bgImg, 0, 0, W, H);
+  else { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#999'; ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Chưa tìm thấy ' + MODES[mode].img, W / 2, H / 2); }
+
+  const vals = {ten: document.getElementById('in_ten').value, uid: document.getElementById('in_uid').value};
+  const dp = dateParts(document.getElementById('in_ngay').value);
+  ctx.textBaseline = 'middle';
+
+  MODES[mode].ops.forEach((o, i) => {
+    const p = pos[mode][i];
+    if (o.cover){ ctx.fillStyle = '#ffffff'; ctx.fillRect(o.cover[0] / 100 * W, o.cover[1] / 100 * H, o.cover[2] / 100 * W, o.cover[3] / 100 * H); }
+    let text;
+    if (o.f === 'ngay'){ if (!dp) return; text = o.t.replace('{d}', dp.d).replace('{m}', dp.m).replace('{y}', dp.y); }
+    else { if (!vals[o.f]) return; text = o.t.replace('{v}', vals[o.f]); }
+    ctx.fillStyle = color; ctx.textAlign = o.a;
+    ctx.font = Math.round(p.s / 100 * W) + 'px "' + font + '", serif';
+    ctx.fillText(text, p.x / 100 * W, p.y / 100 * H);
+  });
+}
+
+async function setMode(m){
+  mode = m;
+  document.getElementById('tabBang').setAttribute('aria-pressed', m === 'bang');
+  document.getElementById('tabCn').setAttribute('aria-pressed', m === 'cn');
+  document.getElementById('color').value = MODES[m].color;
+  bgImg = await loadBg(MODES[m].img);
+  buildPos(); draw();
+}
+
+document.getElementById('tabBang').onclick = () => setMode('bang');
+document.getElementById('tabCn').onclick = () => setMode('cn');
+['in_ten', 'in_ngay', 'in_uid', 'font', 'color'].forEach(id => document.getElementById(id).addEventListener('input', draw));
+
+document.getElementById('dl').onclick = async () => {
+  await draw();
+  try {
+    cv.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = MODES[mode].file; a.click(); }, 'image/png');
+  } catch(e){ alert('Không xuất được ảnh. Hãy mở trang qua link GitHub Pages thay vì mở file trực tiếp.'); }
+};
+
+const t = new Date(), pad = n => String(n).padStart(2, '0');
+document.getElementById('in_ngay').value = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+initPos();
+setMode('bang');
+</script>
+</body>
+</html>
